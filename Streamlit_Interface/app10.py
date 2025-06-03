@@ -25,7 +25,7 @@ AVAILABLE_MODELS = get_installed_ollama_models()
 col1, col2 = st.columns([3, 1])
 with col1:
     with st.container():
-        st.image("Bilder/cip_logo.jpg", width=100)
+        #st.image("Bilder/cip_logo.jpg", width=100)
         # Titel darunter anzeigen
         st.markdown("""<h1 style="font-size: 4em; color: #333;">Chatbot</h1>""", unsafe_allow_html=True)
         
@@ -148,29 +148,34 @@ elif mode == "Kapitel-Modus":
     st.session_state.current_chapter = chapter
     st.session_state.current_step = step
 
+    learn_mode = st.radio("Wähle Lernmodus", ["Fragen", "Test", "Zusammenfassen"], horizontal=True)
     # Chatverlauf anzeigen
-    for message in st.session_state.messages:
-        if isinstance(message, HumanMessage):
+    if learn_mode == "Fragen":
+        for message in st.session_state.messages:
+            if isinstance(message, HumanMessage):
+                with st.chat_message("user"):
+                    st.markdown(message.content)
+            if isinstance(message, AIMessage):
+                with st.chat_message("assistant"):
+                    st.markdown(message.content)
+        
+        prompt = st.chat_input(f"Frage zu {chapter} - {step}")
+
+        if prompt:
             with st.chat_message("user"):
-                st.markdown(message.content)
-        if isinstance(message, AIMessage):
+                st.markdown(prompt)
+                st.session_state.messages.append(HumanMessage(prompt))
+
+            llm = ChatOllama(model=st.session_state.model)
+            result = llm.invoke(st.session_state.messages).content
+
             with st.chat_message("assistant"):
-                st.markdown(message.content)
+                st.markdown(result)
+                st.session_state.messages.append(AIMessage(result))
+    
 
-    prompt = st.chat_input(f"Frage zu {chapter} - {step}")
-
-    if prompt:
-        with st.chat_message("user"):
-            st.markdown(prompt)
-            st.session_state.messages.append(HumanMessage(prompt))
-
-        llm = ChatOllama(model=st.session_state.model)
-        result = llm.invoke(st.session_state.messages).content
-
-        with st.chat_message("assistant"):
-            st.markdown(result)
-            st.session_state.messages.append(AIMessage(result))
-
+    
+    
     # Mikrofonaufnahme für Kapitelmodus
     col1, col2 = st.columns([5, 1])  # Textfeld bekommt mehr Platz, Mikrofon-Button bekommt weniger Platz
 

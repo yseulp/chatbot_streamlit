@@ -1,0 +1,14 @@
+1. Lernziele & Zusammenfassungen pro Kapitel 
+-> kurze Lernziele, sodass man weiß, was in diesem Kapitel abgehakt werden muss
+2. Testmodus 
+
+Innerhalb von Kapitel gibt es 
+1. Testmodus
+-> hier werden die Sachen gefragt
+2. Zusammenfassung modus 
+-> hier macht KI 
+
+3. Frage modus? 
+
+
+
