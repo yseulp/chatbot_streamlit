@@ -8,3 +8,6 @@ chromadb
 pypdf
 tiktoken
 faiss-cpu
+faster_whisper
+torch
+librosa
