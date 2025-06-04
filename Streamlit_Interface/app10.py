@@ -5,6 +5,7 @@ from langchain_core.messages import HumanMessage, AIMessage
 from streamlit_mic_recorder import mic_recorder
 from audio_handler import transcribe_audio
 import streamlit.components.v1 as components
+import pickle
 
 def get_installed_ollama_models():
     try:
@@ -155,7 +156,7 @@ elif mode == "Kapitel-Modus":
             if isinstance(message, HumanMessage):
                 with st.chat_message("user"):
                     st.markdown(message.content)
-            if isinstance(message, AIMessage):
+            if isinstance(message, AIMessage):  
                 with st.chat_message("assistant"):
                     st.markdown(message.content)
         
@@ -172,56 +173,48 @@ elif mode == "Kapitel-Modus":
             with st.chat_message("assistant"):
                 st.markdown(result)
                 st.session_state.messages.append(AIMessage(result))
-    
 
-    
-    
-    # Mikrofonaufnahme für Kapitelmodus
-    col1, col2 = st.columns([5, 1])  # Textfeld bekommt mehr Platz, Mikrofon-Button bekommt weniger Platz
-
-    with col2:
+    elif learn_mode == "Test":
+        try:
+            with open("quiz_catalog.pkl", "rb") as f:
+                quiz_catalog = pickle.load(f)
+        except Exception as e:
+            st.error(f"❌ Quiz-Datei konnte nicht geladen werden: {e}")
+            st.stop()
         
-        mic_button = mic_recorder(start_prompt="🎤 Start recording", stop_prompt="⏹️ Stop recording", just_once=True)
+        chapter_to_quiz_key = {
+            "Kapitel 1: Einführung": "Waste Reduction",
+            "Kapitel 2: Thema X": "Types of Waste",
+            "Kapitel 3: Thema Y": "Spaghetti Diagram Method"
+            # weitere Mappings bei Bedarf ergänzen
+        }
 
-        components.html("""
-            <style>
-                .stButton>button {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                }
-                .stButton>button::before {
-                    content: "🎤";
-                    margin-right: 10px;
-                }
-            </style>
-        """, height=0)
+        mapped_key = chapter_to_quiz_key.get(chapter)
+        quiz_data = quiz_catalog.get(mapped_key, [])
+
+        if not quiz_data:
+            st.warning("Für dieses Kapitel sind keine Quizfragen vorhanden.")
+        else:
+            st.markdown("### Kapitelquiz")
+            for idx, q in enumerate(quiz_data, 1):
+                st.markdown(f"**Frage {idx}:** {q['question']}")
+                user_answer = st.radio("Deine Antwort:", q['options'], key=f"answer_{idx}")
+                if st.button(f"Antwort prüfen für Frage {idx}", key=f"check_{idx}"):
+                    selected_letter = user_answer.split(":")[0].strip()
+                    if selected_letter == q["correct_answer"]:
+                        st.success("Richtig!")
+                    else:
+                        correct_option = next(opt for opt in q["options"] if opt.startswith(q["correct_answer"] + ":"))
+                        st.error(f"Falsch. Richtige Antwort: {q['correct_answer']}")
 
 
-
-    if mic_button:
-        audio_bytes = mic_button["bytes"]
-
-        with st.spinner("🔍 Transkribiere Audio..."):
-            transcribed_audio = transcribe_audio(audio_bytes)
-
-            with st.chat_message("user"):
-                st.markdown(f"🗣️ {transcribed_audio}")
-                st.session_state.messages.append(HumanMessage(transcribed_audio))
-
-            llm = ChatOllama(model=st.session_state.model)
-            result = llm.invoke(st.session_state.messages).content
-
-            with st.chat_message("assistant"):
-                st.markdown(result)
-                st.session_state.messages.append(AIMessage(result))
-
+    
     # Chat speichern oder neuen Chat starten
-    if st.button("Chat speichern"):
-        save_chat()
+    #if st.button("Chat speichern"):
+    #    save_chat()
 
-    if st.button("Neuer Chat"):
-        start_new_chat()
+    #if st.button("Neuer Chat"):
+    #    start_new_chat()
 
 # Sidebar für gespeicherte Chats 
 st.sidebar.header("Gespeicherte Chats")
