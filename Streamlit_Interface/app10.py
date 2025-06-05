@@ -3,6 +3,7 @@ import subprocess
 from langchain_community.chat_models import ChatOllama
 from langchain_core.messages import HumanMessage, AIMessage
 from streamlit_mic_recorder import mic_recorder
+from langchain_community.document_loaders import PyPDFLoader
 from audio_handler import transcribe_audio
 import streamlit.components.v1 as components
 import pickle
@@ -22,18 +23,7 @@ def get_installed_ollama_models():
 
 AVAILABLE_MODELS = get_installed_ollama_models()
 
-# Seitenspalte für Auswahl
-col1, col2 = st.columns([3, 1])
-with col1:
-    with st.container():
-        #st.image("Bilder/cip_logo.jpg", width=100)
-        # Titel darunter anzeigen
-        st.markdown("""<h1 style="font-size: 4em; color: #333;">Chatbot</h1>""", unsafe_allow_html=True)
-        
-with col2:
-    selected_model = st.selectbox("🔧 Modell wählen", AVAILABLE_MODELS, key="model_select")
-    
-st.session_state.model = selected_model
+
 
 # Session State für gespeicherte Chats und Kapitel
 if "messages" not in st.session_state:
@@ -45,6 +35,7 @@ if "mode" not in st.session_state:
     st.session_state.mode = "Normal Chat"
 
 # SIDEBAR: Mode Selection 
+st.sidebar.image("PTW_CiP_Logo.svg", width=300)
 st.sidebar.header("Modus wählen")
 mode = st.sidebar.radio("Wähle einen Modus", ["Normal Chat", "Kapitel-Modus"])
 
@@ -70,7 +61,14 @@ handle_mode_change(mode)
 
 # Normaler Chat Mode 
 if mode == "Normal Chat":
-    st.subheader("💬 Normaler Chat")
+    col_left, col_right = st.columns([3,1])
+
+    with col_left:
+        st.subheader("💬 Normaler Chat")
+    with col_right:
+        selected_model = st.selectbox("🔧 Modell wählen", AVAILABLE_MODELS, key="model_select")
+
+    st.session_state.model = selected_model
 
     # Initialisiere Input-Puffer (für saubere Darstellung)
     if "user_input_buffer" not in st.session_state:
@@ -131,7 +129,14 @@ if mode == "Normal Chat":
 
 #  Kapitel-Modus 
 elif mode == "Kapitel-Modus":
-    st.subheader("📘 Kapitel-Modus")
+    col_left, col_right = st.columns([3,1])
+
+    with col_left:
+        st.subheader(":closed_book: Kapitel-Modus")
+    with col_right:
+        selected_model = st.selectbox("🔧 Modell wählen", AVAILABLE_MODELS, key="model_select")
+
+    st.session_state.model = selected_model
 
     if "chapter_titles" not in st.session_state:
         st.session_state.chapter_titles = ["Kapitel 1: Einführung", "Kapitel 2: Thema X", "Kapitel 3: Thema Y"]
@@ -207,6 +212,48 @@ elif mode == "Kapitel-Modus":
                         correct_option = next(opt for opt in q["options"] if opt.startswith(q["correct_answer"] + ":"))
                         st.error(f"Falsch. Richtige Antwort: {q['correct_answer']}")
 
+    elif learn_mode == "Zusammenfassen":
+        
+        chapter_pdfs = {
+            "Kapitel 1: Einführung": "pdfs/Chapter 3_Waste_Reduction.pdf", 
+        } 
+        
+        pdf_path = chapter_pdfs.get(chapter)
+
+        if not pdf_path:
+            st.warning("Keine PDF-Datei für dieses Kapitel gefunden.")
+        else:
+            try:
+                with st.spinner("Lade und analysiere PDF..."):
+                    loader = PyPDFLoader(pdf_path)
+                    pages = loader.load()
+                    full_text = "\n\n".join([page.page_content for page in pages])
+            except Exception as e:
+                st.error(f"Fehler beim Laden der PDF: {e}")
+                st.stop()
+
+            summary_style = st.selectbox(
+                "Wie soll die Zusammenfassung aussehen?",
+                ["Stichpunkte", "Ausführlich", "Einfach erklärt"]
+            )
+
+            if st.button("Kapitel zusammenfassen"):
+                llm = ChatOllama(model=st.session_state.model)
+
+                prompt = f"Fasse den folgenden Text aus der Vorlesung im Stil '{summary_style}'zusammen:\n\n{full_text}"
+                summary = llm.invoke([HumanMessage(prompt)]).content
+
+                st.markdown("### Zusammenfassung")
+                st.markdown(summary)
+                
+                st.download_button(
+                    label=" Zusammenfassung herunterladen",
+                    data=summary,
+                    file_name=f"Zusammenfassung_{chapter.replace(' ', '_')}.txt",
+                    mime="text/plain"
+                )
+
+        
 
     
     # Chat speichern oder neuen Chat starten
