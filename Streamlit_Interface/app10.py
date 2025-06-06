@@ -179,38 +179,58 @@ elif mode == "Kapitel-Modus":
                 st.markdown(result)
                 st.session_state.messages.append(AIMessage(result))
 
+
     elif learn_mode == "Test":
         try:
             with open("quiz_catalog.pkl", "rb") as f:
                 quiz_catalog = pickle.load(f)
         except Exception as e:
-            st.error(f"❌ Quiz-Datei konnte nicht geladen werden: {e}")
+            st.error(f" Quiz-Datei konnte nicht geladen werden: {e}")
             st.stop()
         
-        chapter_to_quiz_key = {
-            "Kapitel 1: Einführung": "Waste Reduction",
-            "Kapitel 2: Thema X": "Types of Waste",
-            "Kapitel 3: Thema Y": "Spaghetti Diagram Method"
-            # weitere Mappings bei Bedarf ergänzen
-        }
+        if "test_results" not in st.session_state:
+            st.session_state.test_results = {}
+        
+        st.markdown("### Kapitelquiz")
 
-        mapped_key = chapter_to_quiz_key.get(chapter)
-        quiz_data = quiz_catalog.get(mapped_key, [])
+        for key, questions in quiz_catalog.items():
+            st.markdown(f"## Thema: {key}")
 
-        if not quiz_data:
-            st.warning("Für dieses Kapitel sind keine Quizfragen vorhanden.")
-        else:
-            st.markdown("### Kapitelquiz")
-            for idx, q in enumerate(quiz_data, 1):
+        # Frageformat bereinigen
+            if isinstance(questions, dict):
+                questions = [questions]
+            questions = questions[:2]  # Nur zwei Fragen pro Key
+
+            for idx, q in enumerate(questions, 1):
                 st.markdown(f"**Frage {idx}:** {q['question']}")
-                user_answer = st.radio("Deine Antwort:", q['options'], key=f"answer_{idx}")
-                if st.button(f"Antwort prüfen für Frage {idx}", key=f"check_{idx}"):
+                user_answer = st.radio("Deine Antwort:", q["options"], key=f"{key}_q{idx}")
+
+                if st.button(f"Antwort prüfen für {key} Frage {idx}", key=f"check_{key}_{idx}"):
                     selected_letter = user_answer.split(":")[0].strip()
-                    if selected_letter == q["correct_answer"]:
-                        st.success("Richtig!")
+                    is_correct = selected_letter == q["correct_answer"]
+
+                    if is_correct:
+                        st.success("✅ Richtig!")
                     else:
-                        correct_option = next(opt for opt in q["options"] if opt.startswith(q["correct_answer"] + ":"))
-                        st.error(f"Falsch. Richtige Antwort: {q['correct_answer']}")
+                        correct_option = next(
+                            opt for opt in q["options"] if opt.startswith(q["correct_answer"] + ":")
+                        )
+                        st.error(f"❌ Falsch. Richtige Antwort: {correct_option}")
+
+                    if key not in st.session_state.test_results:
+                        st.session_state.test_results[key] = []
+                    st.session_state.test_results[key].append(is_correct)
+        
+        if st.button("📊 Analyse anzeigen"):
+            st.markdown("### 🧠 Schwächenanalyse")
+            for key, results in st.session_state.test_results.items():
+                total = len(results)
+                falsch = results.count(False)
+                if falsch > 0:
+                    st.warning(f"🔍 **{key}**: {falsch} von {total} falsch beantwortet.")
+                else:
+                    st.success(f"✅ **{key}**: Alles richtig beantwortet!")
+
 
     elif learn_mode == "Zusammenfassen":
         
