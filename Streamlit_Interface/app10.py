@@ -1,5 +1,6 @@
 import streamlit as st
 import subprocess
+import base64
 from langchain_community.chat_models import ChatOllama
 from langchain_core.messages import HumanMessage, AIMessage
 from streamlit_mic_recorder import mic_recorder
@@ -7,6 +8,7 @@ from langchain_community.document_loaders import PyPDFLoader
 from audio_handler import transcribe_audio
 import streamlit.components.v1 as components
 import pickle
+import random
 
 def get_installed_ollama_models():
     try:
@@ -99,6 +101,28 @@ if mode == "Normal Chat":
         just_once=True,
         key="mic"
     )
+
+    if mic_button and "audio" in mic_button:
+        audio_base64 = mic_button["audio"]
+
+        # Base64 -> Bytes
+        try:
+            audio_bytes = base64.b64decode(audio_base64.split(",")[1])
+        except Exception as e:
+            st.error(f"⚠️ Konnte Audio nicht dekodieren: {e}")
+            st.stop()
+
+        # Optional abspielen
+        st.audio(audio_bytes, format="audio/wav")
+
+        # Transkribieren
+        try:
+            transcript = transcribe_audio(audio_bytes)
+            st.write("📜 Transkription:", transcript)
+            st.session_state.user_input_buffer = transcript
+            st.rerun()
+        except Exception as e:
+            st.error(f"⚠️ Fehler bei Transkription: {e}")
 
     # Eingabefeld (unten) 
     user_input = st.chat_input("Stelle eine Frage oder nimm Audio auf")
@@ -193,33 +217,37 @@ elif mode == "Kapitel-Modus":
         
         st.markdown("### Kapitelquiz")
 
-        for key, questions in quiz_catalog.items():
-            st.markdown(f"## Thema: {key}")
+        topic_list = list(quiz_catalog.keys())
+        selected_topics = st.multiselect("🧠 Wähle ein oder mehrere Themen für den Test", list(quiz_catalog.keys()))
 
-        # Frageformat bereinigen
-            if isinstance(questions, dict):
-                questions = [questions]
-            questions = questions[:2]  # Nur zwei Fragen pro Key
+        for key in selected_topics:
+                st.markdown(f"## ✏️ Thema: {key}")
+                questions = quiz_catalog[key]
 
-            for idx, q in enumerate(questions, 1):
-                st.markdown(f"**Frage {idx}:** {q['question']}")
-                user_answer = st.radio("Deine Antwort:", q["options"], key=f"{key}_q{idx}")
+                if isinstance(questions, dict):
+                    questions = [questions]
+                questions = random.sample(questions, min(2, len(questions)))  # max. 2 zufällige Fragen
 
-                if st.button(f"Antwort prüfen für {key} Frage {idx}", key=f"check_{key}_{idx}"):
-                    selected_letter = user_answer.split(":")[0].strip()
-                    is_correct = selected_letter == q["correct_answer"]
+                for idx, q in enumerate(questions, 1):
+                    st.markdown(f"**Frage {idx}:** {q['question']}")
+                    user_answer = st.radio("Deine Antwort:", q["options"], key=f"{key}_q{idx}_radio")
 
-                    if is_correct:
-                        st.success("✅ Richtig!")
-                    else:
-                        correct_option = next(
-                            opt for opt in q["options"] if opt.startswith(q["correct_answer"] + ":")
-                        )
-                        st.error(f"❌ Falsch. Richtige Antwort: {correct_option}")
+                    
+                    if st.button(f"Antwort prüfen für {key} Frage {idx}", key=f"check_{key}_q{idx}_button"):
+                        selected_letter = user_answer.split(":")[0].strip()
+                        is_correct = selected_letter == q["correct_answer"]
 
-                    if key not in st.session_state.test_results:
-                        st.session_state.test_results[key] = []
-                    st.session_state.test_results[key].append(is_correct)
+                        if is_correct:
+                            st.success("✅ Richtig!")
+                        else:
+                            correct_option = next(
+                                opt for opt in q["options"] if opt.startswith(q["correct_answer"] + ":")
+                            )
+                            st.error(f"❌ Falsch. Richtige Antwort: {correct_option}")
+
+                        if key not in st.session_state.test_results:
+                            st.session_state.test_results[key] = []
+                        st.session_state.test_results[key].append(is_correct)
         
         if st.button("📊 Analyse anzeigen"):
             st.markdown("### 🧠 Schwächenanalyse")
