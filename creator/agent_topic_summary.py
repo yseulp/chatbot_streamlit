@@ -9,8 +9,8 @@ from langchain.prompts import PromptTemplate
 from langchain.chains import LLMChain
 
 # Paths
-pdf_path = "/Users/simonhenschel/Desktop/UNI/M.Sc/SoSe 25/Masterthesis/Versuch 2/content/Chapter 3_Waste_Reduction.pdf"
-vectorstore_dir = "/Users/simonhenschel/Desktop/UNI/M.Sc/SoSe 25/Masterthesis/Versuch 2/vectorstores_topic_summaries"
+pdf_path = ""
+vectorstore_dir = ""
 os.makedirs(vectorstore_dir, exist_ok=True)
 
 # Load and split PDF

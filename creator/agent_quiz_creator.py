@@ -8,8 +8,8 @@ from langchain_ollama import OllamaEmbeddings, OllamaLLM
 from langchain.prompts import PromptTemplate
 
 # === Einstellungen ===
-vectorstore_base_dir = "/Users/simonhenschel/Desktop/UNI/M.Sc/SoSe 25/Masterthesis/Versuch 2/vectorstores_topic_summaries"
-quiz_catalogs_dir = "/Users/simonhenschel/Desktop/UNI/M.Sc/SoSe 25/Masterthesis/Versuch 2/quiz_catalogs"
+vectorstore_base_dir = ""
+quiz_catalogs_dir = ""
 os.makedirs(quiz_catalogs_dir, exist_ok=True)
 
 # === Modelle ===
